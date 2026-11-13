@@ -64,9 +64,15 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const [
+      {
+        data: { user },
+      },
+      body,
+    ] = await Promise.all([
+      supabase.auth.getUser(),
+      request.json().catch(() => ({})),
+    ]);
 
     if (!user) {
       return NextResponse.json(
@@ -76,12 +82,6 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
-
-    // -----------------------------------------
-    // REQUEST
-    // -----------------------------------------
-
-    const body = await request.json();
 
     const question = String(
       body?.question ?? ""
@@ -115,6 +115,9 @@ export async function POST(request: Request) {
     // USER DASHBOARD DATA
     // -----------------------------------------
 
+    // Skip heavy DB reads for simple greetings like "hello" or "hi"
+    const isSimpleGreeting = /^(hi|hello|hey|namaste|good morning|good evening)[!.\s]*$/i.test(question);
+
     const [
       profileResult,
       medicinesResult,
@@ -122,55 +125,49 @@ export async function POST(request: Request) {
       prescriptionMedicinesResult,
       historyResult,
       safetyResult,
-    ] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle(),
+    ] = isSimpleGreeting
+      ? Array(6).fill({ data: null })
+      : await Promise.all([
+          supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle(),
 
-      supabase
-        .from("user_medicines")
-        .select("*")
-        .eq("user_id", user.id)
-        .limit(100),
+          supabase
+            .from("user_medicines")
+            .select("*")
+            .eq("user_id", user.id)
+            .limit(25),
 
-      supabase
-        .from("prescriptions")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(50),
+          supabase
+            .from("prescriptions")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(10),
 
-      supabase
-        .from("prescription_medicines")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(100),
+          supabase
+            .from("prescription_medicines")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(25),
 
-      supabase
-        .from("medication_history")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(100),
+          supabase
+            .from("medication_history")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(20),
 
-      supabase
-        .from("safety_alerts")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(100),
-    ]);
+          supabase
+            .from("safety_alerts")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(15),
+        ]);
 
     const context = {
       profile: profileResult.data ?? null,
@@ -214,11 +211,11 @@ export async function POST(request: Request) {
 
     const primaryModel =
       process.env.GEMINI_MODEL ||
-      "gemini-3.8-flash";
+      "gemini-2.5-flash";
 
     const fallbackModel =
       process.env.GEMINI_FALLBACK_MODEL ||
-      "gemini-3.5-flash-lite";
+      "gemini-2.5-flash-lite";
 
     // Both are currently listed as stable Gemini API
     // models by Google.
@@ -265,7 +262,7 @@ LANGUAGE:
 - Hinglish is also supported.
 
 USER DASHBOARD DATA:
-${JSON.stringify(context, null, 2)}
+${JSON.stringify(context)}
 `;
 
     // -----------------------------------------
@@ -322,14 +319,16 @@ ${JSON.stringify(context, null, 2)}
       let lastError: any = null;
 
       // Retry transient errors.
+      // Fast-fail retry (max 2 attempts per model, 6.5s timeout each)
       for (
         let attempt = 0;
-        attempt < 3;
+        attempt < 2;
         attempt++
       ) {
         try {
           const response = await fetch(url, {
             method: "POST",
+            signal: AbortSignal.timeout(6500),
 
             headers: {
               "Content-Type":
@@ -339,11 +338,6 @@ ${JSON.stringify(context, null, 2)}
             },
 
             body: JSON.stringify({
-              /*
-               * IMPORTANT:
-               * Gemini REST API expects systemInstruction
-               * using camelCase.
-               */
               systemInstruction: {
                 parts: [
                   {
@@ -356,7 +350,7 @@ ${JSON.stringify(context, null, 2)}
 
               generationConfig: {
                 temperature: 0.2,
-                maxOutputTokens: 1200,
+                maxOutputTokens: 1000,
               },
             }),
           });
@@ -596,58 +590,41 @@ ${JSON.stringify(context, null, 2)}
     // SAVE CONVERSATION
     // -----------------------------------------
 
-    try {
-      const conversation =
-        await supabase
+    // -----------------------------------------
+    // SAVE CONVERSATION (NON-BLOCKING)
+    // -----------------------------------------
+
+    void (async () => {
+      try {
+        const conversation = await supabase
           .from("ai_conversations")
           .insert({
             user_id: user.id,
-            title:
-              question.slice(
-                0,
-                80
-              ),
+            title: question.slice(0, 80),
           })
           .select("id")
           .single();
 
-      if (
-        conversation.data?.id
-      ) {
-        await supabase
-          .from("ai_messages")
-          .insert([
+        if (conversation.data?.id) {
+          await supabase.from("ai_messages").insert([
             {
-              conversation_id:
-                conversation.data
-                  .id,
-              user_id:
-                user.id,
+              conversation_id: conversation.data.id,
+              user_id: user.id,
               role: "user",
-              content:
-                question,
+              content: question,
             },
-
             {
-              conversation_id:
-                conversation.data
-                  .id,
-              user_id:
-                user.id,
+              conversation_id: conversation.data.id,
+              user_id: user.id,
               role: "assistant",
-              content:
-                answer,
+              content: answer,
             },
           ]);
+        }
+      } catch (saveError) {
+        console.warn("Could not save AI conversation:", saveError);
       }
-    } catch (saveError) {
-      // Conversation saving should never
-      // break the AI response.
-      console.warn(
-        "Could not save AI conversation:",
-        saveError
-      );
-    }
+    })();
 
     // -----------------------------------------
     // RESPONSE
@@ -655,7 +632,7 @@ ${JSON.stringify(context, null, 2)}
 
     return NextResponse.json({
       answer,
-      usedDashboardData: true,
+      usedDashboardData: !isSimpleGreeting,
       model: usedModel,
     });
   } catch (error: any) {

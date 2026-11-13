@@ -1,4 +1,16 @@
-import HealthCenterMap from "@/components/health-center-map";
+import dynamic from "next/dynamic";
+
+ const HealthCenterMap = dynamic(
+  () => import("@/components/health-center-map"),
+  {
+    loading: () => (
+      <div className="h-[420px] w-full animate-pulse rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-sm text-zinc-500">
+        Loading map...
+      </div>
+    ),
+  }
+);
+
 
 export default function SafetyPage() {
   return (

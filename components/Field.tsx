@@ -14,6 +14,8 @@ export function Field({ id, label, type = "text", value, onChange, autoComplete,
       <label htmlFor={id} className="block text-[13px] font-semibold tracking-[0.01em] text-ink/85">{label}</label>
       <div className="relative">
         <input
+        suppressHydrationWarning
+        
           id={id} name={id} type={isPassword && shown ? "text" : type} value={value}
           onChange={(e) => onChange(e.target.value)} autoComplete={autoComplete} required={required} disabled={disabled}
           aria-describedby={hint ? `${id}-hint` : undefined}

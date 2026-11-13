@@ -41,12 +41,12 @@ export default async function Dashboard() {
             </Link>
           </div>
 
-          <div className="hidden max-w-[545px] flex-1 md:block">
+          {/* <div className="hidden max-w-[545px] flex-1 md:block">
             <div className="ml-7 flex h-10 items-center gap-3 rounded-full border border-[#DCE5E8] bg-[#F7FAFB] px-4 text-sm text-[#71858B]">
               <span className="text-xl leading-none">⌕</span>
               <span>Search your medicines, ask Visionmate...</span>
             </div>
-          </div>
+          </div> */}
 
           <div className="ml-auto flex items-center gap-5">
             <span className="relative hidden text-xl text-[#173A46] sm:block">♧

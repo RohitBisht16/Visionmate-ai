@@ -30,6 +30,7 @@ export default function GlobalVoiceAssistant() {
 
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
 
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [thinking, setThinking] = useState(false);
@@ -37,6 +38,16 @@ export default function GlobalVoiceAssistant() {
 
   const [transcript, setTranscript] = useState("");
   const [answer, setAnswer] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+    return () => {
+      recognitionRef.current?.stop();
+      if (typeof window !== "undefined") {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   // --------------------------------------------------
   // SPEAK
@@ -74,17 +85,13 @@ export default function GlobalVoiceAssistant() {
   // NAVIGATION
   // --------------------------------------------------
 
-  const navigate = (
-    path: string,
-    message: string
-  ) => {
+  const navigate = (path: string, message: string) => {
     setAnswer(message);
-
     speak(message);
 
     setTimeout(() => {
       router.push(path);
-    }, 1200);
+    }, 1000);
   };
 
   // --------------------------------------------------
@@ -99,6 +106,11 @@ export default function GlobalVoiceAssistant() {
     setThinking(true);
     setAnswer("");
 
+    const hasNavIntent =
+      /\b(le\s*jao|jao|kholo|dikhao|open|go\s*to|take\s*me|navigate|show|page|section|par|per|pe)\b/i.test(
+        text
+      ) || /जाओ|ले जाओ|खोलो|दिखाओ|पेज/.test(text);
+
     // -----------------------------------------------
     // DASHBOARD
     // -----------------------------------------------
@@ -107,23 +119,34 @@ export default function GlobalVoiceAssistant() {
       text.includes("dashboard") ||
       text.includes("home page") ||
       text.includes("home par") ||
-      text.includes("dashboard par") ||
-      text.includes("dashboard pe") ||
+      text.includes("home per") ||
+      text.includes("overview") ||
       text.includes("होम") ||
       text.includes("डैशबोर्ड")
     ) {
       setThinking(false);
-
-      navigate(
-        "/dashboard",
-        "Okay, I'm taking you to the dashboard."
-      );
-
+      navigate("/dashboard", "Okay, I'm taking you to the dashboard.");
       return;
     }
 
     // -----------------------------------------------
-    // MY MEDICINES
+    // MEDICINE SCANNER (/scan)
+    // -----------------------------------------------
+
+    if (
+      text.includes("scan medicine") ||
+      text.includes("medicine scan") ||
+      text.includes("tablet scan") ||
+      text.includes("dawai scan") ||
+      text.includes("दवाई स्कैन")
+    ) {
+      setThinking(false);
+      navigate("/scan", "Okay, I'm opening the medicine scanner.");
+      return;
+    }
+
+    // -----------------------------------------------
+    // MY MEDICINES (/medicines)
     // -----------------------------------------------
 
     if (
@@ -131,28 +154,25 @@ export default function GlobalVoiceAssistant() {
       text.includes("my medicine") ||
       text.includes("meri medicines") ||
       text.includes("meri medicine") ||
-      text.includes("medicine section") ||
-      text.includes("medicines section") ||
-      text.includes("medicines dikhao") ||
-      text.includes("medicine dikhao") ||
+      text.includes("active medicine") ||
       text.includes("मेरी मेडिसिन") ||
       text.includes("मेरी दवाइयां") ||
       text.includes("मेरी दवाइयाँ") ||
       text.includes("दवाइयां दिखाओ") ||
-      text.includes("दवाइयाँ दिखाओ")
+      text.includes("दवाइयाँ दिखाओ") ||
+      (hasNavIntent &&
+        (text.includes("medicine") ||
+          text.includes("dawai") ||
+          text.includes("दवाई") ||
+          text.includes("दवाइ")))
     ) {
       setThinking(false);
-
-      navigate(
-        "/medicines",
-        "Sure, I'm opening your medicines section."
-      );
-
+      navigate("/medicines", "Sure, I'm opening your medicines section.");
       return;
     }
 
     // -----------------------------------------------
-    // PRESCRIPTION SCANNER
+    // PRESCRIPTION SCANNER (/prescription/scan)
     // -----------------------------------------------
 
     if (
@@ -165,17 +185,15 @@ export default function GlobalVoiceAssistant() {
       text.includes("प्रिस्क्रिप्शन स्कैन करो")
     ) {
       setThinking(false);
-
       navigate(
         "/prescription/scan",
         "Okay, I'm opening the prescription scanner."
       );
-
       return;
     }
 
     // -----------------------------------------------
-    // PRESCRIPTION HISTORY
+    // PRESCRIPTIONS PAGE (/prescriptions or /prescription/scan)
     // -----------------------------------------------
 
     if (
@@ -183,63 +201,64 @@ export default function GlobalVoiceAssistant() {
       text.includes("prescription history") ||
       text.includes("meri prescriptions") ||
       text.includes("prescription dikhao") ||
-      text.includes("प्रिस्क्रिप्शन दिखाओ")
+      text.includes("प्रिस्क्रिप्शन दिखाओ") ||
+      (hasNavIntent &&
+        (text.includes("prescription") ||
+          text.includes("parcha") ||
+          text.includes("प्रिस्क्रिप्शन") ||
+          text.includes("पर्चा")))
     ) {
       setThinking(false);
-
-      navigate(
-        "/prescriptions",
-        "Sure, I'm opening your prescriptions."
-      );
-
+      navigate("/prescription/scan", "Sure, I'm taking you to the prescription page.");
       return;
     }
 
     // -----------------------------------------------
-    // SAFETY CENTER
+    // SAFETY CENTER (/safety)
     // -----------------------------------------------
 
     if (
       text.includes("safety center") ||
       text.includes("safety") ||
-      text.includes("safety section") ||
-      text.includes("safety kholo") ||
       text.includes("सेफ्टी सेंटर") ||
       text.includes("सुरक्षा")
     ) {
       setThinking(false);
-
-      navigate(
-        "/safety",
-        "Okay, I'm opening the Safety Center."
-      );
-
+      navigate("/safety", "Okay, I'm opening the Safety Center.");
       return;
     }
 
     // -----------------------------------------------
-    // HISTORY
+    // HISTORY (/history)
     // -----------------------------------------------
 
     if (
       text.includes("history") ||
-      text.includes("my history") ||
-      text.includes("meri history") ||
-      text.includes("history dikhao") ||
-      text.includes("हिस्ट्री दिखाओ")
+      text.includes("हिस्ट्री") ||
+      (hasNavIntent && (text.includes("record") || text.includes("purana")))
     ) {
       setThinking(false);
-
-      navigate(
-        "/history",
-        "Sure, I'm opening your history."
-      );
-
+      navigate("/history", "Sure, I'm opening your medical history.");
       return;
     }
 
     // -----------------------------------------------
-    // ASK VISIONMATE
+    // PROFILE (/profile)
+    // -----------------------------------------------
+
+    if (
+      text.includes("profile") ||
+      text.includes("emergency") ||
+      text.includes("allergy") ||
+      text.includes("प्रोफाइल")
+    ) {
+      setThinking(false);
+      navigate("/profile", "Sure, I'm opening your profile page.");
+      return;
+    }
+
+    // -----------------------------------------------
+    // ASK VISIONMATE (/ask)
     // -----------------------------------------------
 
     if (
@@ -249,12 +268,7 @@ export default function GlobalVoiceAssistant() {
       text.includes("ai se baat")
     ) {
       setThinking(false);
-
-      navigate(
-        "/ask",
-        "Okay, I'm opening Ask Visionmate."
-      );
-
+      navigate("/ask", "Okay, I'm opening Ask Visionmate.");
       return;
     }
 
@@ -266,12 +280,11 @@ export default function GlobalVoiceAssistant() {
       text === "go back" ||
       text === "back" ||
       text.includes("peeche jao") ||
+      text.includes("piche jao") ||
       text.includes("पीछे जाओ")
     ) {
       setThinking(false);
-
       setAnswer("Okay, going back.");
-
       speak("Okay, going back.");
 
       setTimeout(() => {
@@ -313,7 +326,6 @@ export default function GlobalVoiceAssistant() {
         "Sorry, I couldn't understand that.";
 
       setAnswer(aiAnswer);
-
       speak(aiAnswer);
     } catch (error) {
       console.error(error);
@@ -322,7 +334,6 @@ export default function GlobalVoiceAssistant() {
         "Sorry, I couldn't connect to Visionmate right now.";
 
       setAnswer(errorMessage);
-
       speak(errorMessage);
     } finally {
       setThinking(false);
@@ -337,8 +348,7 @@ export default function GlobalVoiceAssistant() {
     if (typeof window === "undefined") return;
 
     const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
+      window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setAnswer(
@@ -369,11 +379,7 @@ export default function GlobalVoiceAssistant() {
       let finalText = "";
       let interimText = "";
 
-      for (
-        let i = event.resultIndex;
-        i < event.results.length;
-        i++
-      ) {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
 
         if (result.isFinal) {
@@ -401,13 +407,11 @@ export default function GlobalVoiceAssistant() {
       let message = "Voice recognition failed.";
 
       if (event.error === "not-allowed") {
-        message =
-          "Please allow microphone permission in your browser.";
+        message = "Please allow microphone permission in your browser.";
       }
 
       if (event.error === "no-speech") {
-        message =
-          "I didn't hear anything. Please try again.";
+        message = "I didn't hear anything. Please try again.";
       }
 
       setAnswer(message);
@@ -441,19 +445,7 @@ export default function GlobalVoiceAssistant() {
     setThinking(false);
   };
 
-  // --------------------------------------------------
-  // CLEANUP
-  // --------------------------------------------------
-
-  useEffect(() => {
-    return () => {
-      recognitionRef.current?.stop();
-
-      if (typeof window !== "undefined") {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
+  if (!mounted) return null;
 
   // --------------------------------------------------
   // UI
@@ -462,7 +454,6 @@ export default function GlobalVoiceAssistant() {
   return (
     <>
       {/* Floating microphone */}
-
       <button
         onClick={() => {
           if (listening || speaking || thinking) {
@@ -486,13 +477,10 @@ export default function GlobalVoiceAssistant() {
           }
         `}
       >
-        <span className="text-3xl">
-          {listening ? "🔴" : "🎙️"}
-        </span>
+        <span className="text-3xl">{listening ? "🔴" : "🎙️"}</span>
       </button>
 
       {/* Voice panel */}
-
       {open && (
         <div className="fixed bottom-28 right-6 z-[9998] w-[340px] max-w-[calc(100vw-32px)] rounded-3xl border border-line bg-white p-5 shadow-2xl">
           <div className="flex items-center justify-between">
@@ -526,9 +514,7 @@ export default function GlobalVoiceAssistant() {
                   Listening...
                 </p>
 
-                <p className="mt-1 text-xs text-slate-500">
-                  Speak now
-                </p>
+                <p className="mt-1 text-xs text-slate-500">Speak now</p>
               </div>
             )}
 
@@ -536,9 +522,7 @@ export default function GlobalVoiceAssistant() {
               <div className="text-center">
                 <div className="text-4xl">🤖</div>
 
-                <p className="mt-2 font-semibold">
-                  Understanding...
-                </p>
+                <p className="mt-2 font-semibold">Understanding...</p>
               </div>
             )}
 
@@ -560,21 +544,15 @@ export default function GlobalVoiceAssistant() {
                 <div className="text-center">
                   <div className="text-4xl">👋</div>
 
-                  <p className="mt-2 font-semibold">
-                    How can I help?
-                  </p>
+                  <p className="mt-2 font-semibold">How can I help?</p>
                 </div>
               )}
 
             {transcript && (
               <div className="mt-3">
-                <p className="text-xs font-semibold text-slate-500">
-                  YOU SAID
-                </p>
+                <p className="text-xs font-semibold text-slate-500">YOU SAID</p>
 
-                <p className="mt-1 text-sm">
-                  "{transcript}"
-                </p>
+                <p className="mt-1 text-sm">&quot;{transcript}&quot;</p>
               </div>
             )}
 
@@ -584,15 +562,12 @@ export default function GlobalVoiceAssistant() {
                   VISIONMATE
                 </p>
 
-                <p className="mt-1 text-sm leading-6">
-                  {answer}
-                </p>
+                <p className="mt-1 text-sm leading-6">{answer}</p>
               </div>
             )}
           </div>
 
           {/* Replay */}
-
           {answer && !speaking && (
             <button
               onClick={() => speak(answer)}
@@ -603,7 +578,6 @@ export default function GlobalVoiceAssistant() {
           )}
 
           {/* Stop */}
-
           {(listening || thinking || speaking) && (
             <button
               onClick={stopEverything}
@@ -614,7 +588,6 @@ export default function GlobalVoiceAssistant() {
           )}
 
           {/* Examples */}
-
           {!listening && !thinking && !answer && (
             <div className="mt-4">
               <p className="text-xs font-semibold text-slate-500">
@@ -622,10 +595,10 @@ export default function GlobalVoiceAssistant() {
               </p>
 
               <div className="mt-2 space-y-2 text-xs text-slate-600">
-                <p>• "Meri medicines dikhao"</p>
-                <p>• "Prescription scan karo"</p>
-                <p>• "Safety center kholo"</p>
-                <p>• "Dashboard par le jao"</p>
+                <p>&quot;Meri medicines dikhao&quot;</p>
+                <p>&quot;Prescription page par le jao&quot;</p>
+                <p>&quot;History kholo&quot;</p>
+                <p>&quot;Profile page par le jao&quot;</p>
               </div>
             </div>
           )}
