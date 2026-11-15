@@ -29,12 +29,12 @@ type SpeechRecognitionInstance = {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
+// Speech recognition isn't in the standard DOM typings; typed locally to avoid
+// conflicting global Window augmentations across components.
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
 
 const starters = [
   "What medicines are saved in my dashboard?",
@@ -192,7 +192,8 @@ export default function AIChatBox() {
     if (busy) return;
 
     const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+      (window as SpeechWindow).SpeechRecognition ||
+      (window as SpeechWindow).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setStatus(

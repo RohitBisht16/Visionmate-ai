@@ -29,7 +29,7 @@ export default function SafetyPage() {
           </p>
         </div>
 
-        <HealthCenterMap radiusMeters={5000} />
+        <HealthCenterMap />
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
           <strong className="text-slate-900">Safety note:</strong> Visionmate
