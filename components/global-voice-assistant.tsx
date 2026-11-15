@@ -17,12 +17,12 @@ type SpeechRecognitionType = {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionType;
 
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
+// Speech recognition isn't in the standard DOM typings; typed locally to avoid
+// conflicting global Window augmentations across components.
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
 
 export default function GlobalVoiceAssistant() {
   const router = useRouter();
@@ -348,7 +348,8 @@ export default function GlobalVoiceAssistant() {
     if (typeof window === "undefined") return;
 
     const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+      (window as SpeechWindow).SpeechRecognition ||
+      (window as SpeechWindow).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setAnswer(

@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# NOTE: "lib/" (Python build output) removed - lib/ holds app source code.
 lib64/
 parts/
 sdist/

@@ -334,7 +334,7 @@ ${JSON.stringify(context)}
               "Content-Type":
                 "application/json",
 
-              "x-goog-api-key": apiKey,
+              "x-goog-api-key": apiKey!,
             },
 
             body: JSON.stringify({
