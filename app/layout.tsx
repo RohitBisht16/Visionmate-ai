@@ -19,9 +19,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body suppressHydrationWarning={true}>
+    <html lang="en" className={`${display.variable} ${sans.variable}`}>
+      <body suppressHydrationWarning={true} className="font-sans antialiased">
         {children}
+        <GlobalVoiceAssistant />
       </body>
     </html>
   );
