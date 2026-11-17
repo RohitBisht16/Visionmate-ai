@@ -1,4 +1,4 @@
-import { SignupForm } from "./SignupForm";
+import SignupForm from "./SignupForm";
 
 export const metadata = { title: "Create account · Visionmate AI" };
 

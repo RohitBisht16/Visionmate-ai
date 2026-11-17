@@ -1,56 +1,70 @@
 "use client";
-import Link from "next/link";
+
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { friendlyAuthError } from "@/lib/auth-errors";
-import { isSupabaseConfigured } from "@/lib/utils";
-import { CONFIG_MESSAGE, Field, FormMessage, SubmitButton } from "@/components/Field";
 
-export function ForgotForm() {
+export default function ForgotForm() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [sent, setSent] = useState(false);
+  const [status, setStatus] = useState("");
+  const supabase = createClient();
 
-  async function onSubmit(e: React.FormEvent) {
+  async function handleResetRequest(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    if (!isSupabaseConfigured) return setError(CONFIG_MESSAGE);
+    if (!email.trim()) return;
+
     setLoading(true);
-    try {
-      const { error } = await createClient().auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
-      });
-      if (error) setError(friendlyAuthError(error));
-      else setSent(true);
-    } catch {
-      setError(friendlyAuthError({ message: "network" }));
+    setStatus("Sending reset link...");
+
+    // Step 2 implementation: points to the auth/confirm route handler
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth/confirm?next=/update-password`,
+    });
+
+    if (error) {
+      setStatus(`❌ Error: ${error.message}`);
+    } else {
+      setStatus("✅ Password reset link sent! Check your Gmail inbox.");
     }
     setLoading(false);
   }
 
   return (
-    <>
-      <div className="mb-8"><p className="mb-2 text-xs font-bold uppercase tracking-[.16em] text-signal">Account recovery</p><h1 className="font-display text-[38px] font-medium leading-tight sm:text-4xl">Reset your password</h1><p className="mt-2 text-sm leading-6 text-ink/60">Enter your email and we’ll send a secure reset link.</p></div>
-
-      {sent ? (
-        <div className="mt-8">
-          <FormMessage kind="success">
-            If an account exists for {email.trim()}, a reset link is on its way. Check your inbox and spam folder.
-          </FormMessage>
-        </div>
-      ) : (
-        <form onSubmit={onSubmit} className="mt-8 space-y-5">
-          {!isSupabaseConfigured && <FormMessage kind="config">{CONFIG_MESSAGE}</FormMessage>}
-          {error && <FormMessage kind="error">{error}</FormMessage>}
-          <Field id="email" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" disabled={loading} />
-          <SubmitButton loading={loading} loadingText="Sending link...">Send reset link</SubmitButton>
-        </form>
-      )}
-
-      <p className="mt-8 text-sm">
-        <Link href="/login" className="font-medium text-signal underline underline-offset-2">Back to log in</Link>
+    <div className="mx-auto max-w-md rounded-3xl border border-line bg-white p-6 shadow-sm">
+      <h1 className="font-display text-2xl">Reset Password</h1>
+      <p className="mt-1 text-sm text-ink/60">
+        Enter your email address and we&apos;ll send you a link to reset your password.
       </p>
-    </>
+
+      <form onSubmit={handleResetRequest} className="mt-6 space-y-4">
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink/70">
+            Email Address
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            className="mt-1 w-full rounded-xl border border-line bg-white px-4 py-3 text-sm outline-none focus:border-signal focus:ring-2 focus:ring-signal/10"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-xl bg-signal px-5 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? "Sending Link..." : "Send Reset Link"}
+        </button>
+      </form>
+
+      {status && (
+        <div className="mt-4 rounded-xl border border-line bg-[#F7FAF9] px-4 py-3 text-sm text-ink/80">
+          {status}
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,6 +1,4 @@
-import { ForgotForm } from "./ForgotForm";
-
-export const metadata = { title: "Reset password · Visionmate AI" };
+import ForgotForm from "./ForgotForm"; // Ensure there are no curly braces {}
 
 export default function ForgotPasswordPage() {
   return <ForgotForm />;

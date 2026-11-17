@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import SettingsForm, { UserSettingsData } from "@/components/SettingsForm";
+import PasswordChangeSection from "./PasswordChangeSection"; // 1. Import the component
 
 export const metadata = { title: "Settings · Visionmate AI" };
 
@@ -29,7 +30,7 @@ export default async function SettingsPage() {
 
   return (
     <main className="min-h-screen bg-[#F5F8F7] px-4 py-6 text-ink sm:px-6 lg:px-10">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-4xl space-y-8">
         <header className="flex items-center justify-between">
           <Link
             href="/dashboard"
@@ -70,6 +71,9 @@ export default async function SettingsPage() {
           email={user.email ?? ""}
           initialSettings={initialSettings}
         />
+
+        {/* 2. Added Password Change Section below settings form */}
+        <PasswordChangeSection />
       </div>
     </main>
   );
